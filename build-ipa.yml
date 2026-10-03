@@ -1,0 +1,46 @@
+name: Build unsigned IPA
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Show toolchain
+        run: xcodebuild -version && swift --version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build (unsigned, device SDK)
+        run: |
+          xcodebuild \
+            -project GameVoice.xcodeproj \
+            -scheme GameVoice \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package IPA
+        run: |
+          APP=build/Build/Products/Release-iphoneos/GameVoice.app
+          test -d "$APP" || { echo "App not found"; find build -name '*.app' -maxdepth 6; exit 1; }
+          echo "--- Frameworks inside app:"; ls "$APP/Frameworks" 2>/dev/null || echo "(none, statically linked)"
+          mkdir Payload
+          cp -R "$APP" Payload/
+          zip -qry GameVoice.ipa Payload
+          unzip -l GameVoice.ipa | tail -5
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: GameVoice-ipa
+          path: GameVoice.ipa

@@ -1,0 +1,5 @@
+GameVoice.xcodeproj/
+GameVoice/Info.plist
+build/
+Payload/
+*.ipa
